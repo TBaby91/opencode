@@ -39,6 +39,7 @@ import { Environment } from "../environment/index.js"
 import { FileAccess } from "../file-access.js"
 import { FileMutation } from "../file-mutation.js"
 import { Formatter } from "../formatter.js"
+import { Generate } from "../generate.js"
 import { Form } from "../form.js"
 import { FileSystem } from "../filesystem.js"
 import { LocationWatcherPolicy } from "../filesystem/location-watcher-policy.js"
@@ -50,7 +51,6 @@ import { Integration } from "../integration.js"
 import { Job } from "../job.js"
 import { KV } from "../kv.js"
 import { Location } from "../location.js"
-import { ManagedPolicy } from "../managed-policy.js"
 import { ModelsDev } from "../models-dev.js"
 import { Mcp } from "../mcp/index.js"
 import { Npm } from "@opencode/util/npm"
@@ -72,6 +72,7 @@ import { PatchTool } from "../tool/plugin/patch.js"
 import { EditTool } from "../tool/plugin/edit.js"
 import { GlobTool } from "../tool/plugin/glob.js"
 import { GrepTool } from "../tool/plugin/grep.js"
+import { ImageGenerateTool } from "../tool/plugin/image-generate.js"
 import { McpResourceTools } from "../tool/plugin/mcp-resource.js"
 import { OpenCodeTools } from "../tool/plugin/opencode.js"
 import { QuestionTool } from "../tool/plugin/question.js"
@@ -92,6 +93,7 @@ import BrowserPlugin from "@opencode/plugin-browser"
 import { CommandPlugin } from "./command.js"
 import { IdentityPlugin } from "./identity.js"
 import { PlanPlugin } from "./plan.js"
+import { GoalPlugin } from "./goal.js"
 import { ModelsDevPlugin } from "./models-dev.js"
 import { McpCodeModeDefaultsPlugin } from "./mcp-codemode-defaults.js"
 import { ProviderPlugins } from "./provider.js"
@@ -119,6 +121,7 @@ const services = [
   FileAccess.Service,
   FileMutation.Service,
   Formatter.Service,
+  Generate.Service,
   LocationWatcherPolicy.Service,
   FileSystem.Service,
   FSUtil.Service,
@@ -131,7 +134,6 @@ const services = [
   KV.Service,
   LLMClient.Service,
   Location.Service,
-  ManagedPolicy.Service,
   ModelsDev.Service,
   Mcp.Service,
   Npm.Service,
@@ -173,6 +175,7 @@ export const requirements = LayerNode.group([
   FileAccess.node,
   FileMutation.node,
   Formatter.node,
+  Generate.node,
   LocationWatcherPolicy.node,
   FileSystem.node,
   FSUtil.node,
@@ -185,7 +188,6 @@ export const requirements = LayerNode.group([
   KV.node,
   llmClient,
   Location.node,
-  ManagedPolicy.node,
   ModelsDev.node,
   Mcp.node,
   Npm.node,
@@ -224,6 +226,7 @@ const pre = [
   AgentPlugin.Plugin,
   PlanPlugin.Plugin,
   CommandPlugin.Plugin,
+  GoalPlugin.Plugin,
   SkillPlugin.Plugin,
   VcsHgPlugin.Plugin,
   ModelsDevPlugin,
@@ -237,6 +240,7 @@ const pre = [
   EditTool.Plugin,
   GlobTool.Plugin,
   GrepTool.Plugin,
+  ImageGenerateTool.Plugin,
   OpenCodeTools.Plugin,
   McpResourceTools.Plugin,
   QuestionTool.Plugin,

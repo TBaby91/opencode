@@ -112,6 +112,13 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
     keywords: "model picker selector switcher redesign",
   },
   {
+    tab: "experimental",
+    label: "settings.experimental.row.foldUserMessages.title",
+    target: "settings-fold-user-messages",
+    description: "settings.experimental.row.foldUserMessages.description",
+    keywords: "fold collapse long messages prompts read more",
+  },
+  {
     tab: "appearance",
     label: "settings.general.row.colorScheme.title",
     target: "settings-color-scheme",
@@ -220,7 +227,12 @@ export const serverSettings: Entry<SettingsServerTab | "servers">[] = [
     label: "settings.extensions.tab.mcps",
     keywords: "model context protocol tools",
   },
-  { tab: "extensions", subtab: "plugins", label: "settings.extensions.tab.plugins" },
+  {
+    tab: "extensions",
+    subtab: "plugins",
+    label: "settings.extensions.tab.plugins",
+    keywords: "extension gui built-in",
+  },
   { tab: "extensions", subtab: "skills", label: "settings.extensions.tab.skills" },
   {
     tab: "servers",

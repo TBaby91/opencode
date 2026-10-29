@@ -15,23 +15,23 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { ResizeHandle } from "@opencode/ui/resize-handle"
-import type { BackgroundTask, MountedSession, SessionScreen } from "@opencode/gui-extensions/sdk"
+import type { BackgroundTask, MountedSession, SessionScreen } from "@opencode/plugin/gui"
 import { MessageTimeline } from "@/session/timeline/message-timeline"
 import { ComposerDropzone } from "@/composer/dropzone"
 import { useSettings } from "@/settings/model"
 import type { SessionModel } from "@/session/model"
 import { SESSION_PANEL_WIDTH_MIN } from "@/session/session-panel-width"
 import { SessionPanelFrame } from "@/session/session-frame"
-import { ExtensionLinks } from "@/runtime/extension/render"
-import { createPanelSidebar, createRegion, MobilePanel } from "@/runtime/extension/panels"
-import { createMobileViews, MobileViewTabs } from "@/runtime/extension/mobile"
-import { useExtensionAttachment } from "@/runtime/extension/host-apis"
-import { createMountedSession } from "@/runtime/extension/mounted-session"
+import { PluginLinks } from "@/runtime/plugin/render"
+import { createPanelSidebar, createRegion, MobilePanel } from "@/runtime/plugin/panels"
+import { createMobileViews, MobileViewTabs } from "@/runtime/plugin/mobile"
+import { usePluginAttachment } from "@/runtime/plugin/host-apis"
+import { createMountedSession } from "@/runtime/plugin/mounted-session"
 import { useUsageExceededDialogs } from "./usage-exceeded-dialogs"
 import { SessionErrorFallback } from "./route-error"
 import { createSessionScreenLayout } from "./screen-layout"
-import { PaneTabs, SideRegion } from "@/runtime/extension/side-region"
-import { createPaneDrag } from "@/runtime/extension/pane-drag"
+import { PaneTabs, SideRegion } from "@/runtime/plugin/side-region"
+import { createPaneDrag } from "@/runtime/plugin/pane-drag"
 import { useLanguage } from "@/runtime/i18n/language"
 import { IconButton } from "@opencode/ui/icon-button"
 import { Icon } from "@opencode/ui/icon"
@@ -40,6 +40,7 @@ import { createSessionTimelineInteraction } from "./timeline/interaction"
 import { createTimelineSearchController } from "./timeline/search-controller"
 import { TimelineSearchBar } from "./timeline/search-bar"
 import { createTimelineQuote, TimelineQuote } from "./timeline/quote"
+import { createTimelineQuoteHighlight } from "./timeline/quote-highlight"
 import { ActiveSessionComposerRegion, createActiveSessionRegion } from "./composer/region"
 import { SessionIdentityHeader, SessionLocation } from "./session-identity-header"
 import { SessionHeaderDrag, windowDragEnabled } from "./header/drag-area"
@@ -54,7 +55,7 @@ export function SessionScreenView(props: { session: SessionModel }) {
   const mounted = createMountedSession(props.session)
 
   return (
-    <ExtensionLinks session={mounted.view()}>
+    <PluginLinks session={mounted.view()}>
       <SessionScreenContent
         session={props.session}
         screen={mounted.screen}
@@ -62,7 +63,7 @@ export function SessionScreenView(props: { session: SessionModel }) {
         bindBackground={mounted.bindBackground}
         bindPrompt={mounted.bindPrompt}
       />
-    </ExtensionLinks>
+    </PluginLinks>
   )
 }
 
@@ -72,11 +73,11 @@ function SessionScreenContent(props: {
   view: Accessor<MountedSession>
   screen: SessionScreen
   bindBackground: (tasks: () => readonly BackgroundTask[]) => void
-  bindPrompt: (prompt: { quotable: () => boolean; focus: () => void }) => void
+  bindPrompt: (prompt: { quotable: () => boolean; focus: () => void; focused: () => boolean }) => void
 }) {
   const session = props.session
   const language = useLanguage()
-  const attachment = useExtensionAttachment()
+  const attachment = usePluginAttachment()
   const settings = useSettings()
   const server = useServer()
   const isDesktop = session.isDesktop
@@ -162,8 +163,13 @@ function SessionScreenContent(props: {
   let sideGlyph: SVGPathElement | undefined
   let sideClosed = 0
   // While the left sidebar moves the side panel's edge, its contents keep the width they land at, and centred content,
-  // like a Markdown preview, keeps its place rather than jumping by half the change.
-  holdLandingWidth(() => sideContent, "blocks")
+  // like a Markdown preview, keeps its place rather than jumping by half the change. The side region's content box is
+  // the one element whose own width reads the hold.
+  holdLandingWidth(
+    () => sideContent,
+    "blocks",
+    () => sideContent?.querySelector<HTMLElement>('[data-slot="session-review-content"]'),
+  )
   // The toggle's pane fills from the panel's edge as far as the panel is open.
   const paintSideGlyph = () => sideGlyph?.setAttribute("transform", reviewGlyphFill(1 - sideClosed))
 
@@ -235,7 +241,7 @@ function SessionScreenContent(props: {
   })
 
   props.bindBackground(composer.requests.background.tasks)
-  props.bindPrompt({ quotable: composer.quote.available, focus: composer.quote.focus })
+  props.bindPrompt({ quotable: composer.quote.available, focus: composer.quote.focus, focused: composer.focused })
   useUsageExceededDialogs({
     selection: () => composer.active()?.composer.model.selection,
     onDone: () => composer.active()?.composer.restoreFocus(),
@@ -246,6 +252,17 @@ function SessionScreenContent(props: {
     sessionKey: session.identity.sessionKey,
     enabled: () => conversationVisible() && composer.quote.available(),
     add: composer.quote.add,
+  })
+
+  createTimelineQuoteHighlight({
+    root: timeline.scroller,
+    visible: timeline.visible,
+    source: composer.quote.source,
+    enabled: () => conversationVisible() && composer.quote.available(),
+    reveal: (id, partID) => {
+      if (!timeline.actions.revealPart(partID)) timeline.actions.revealMessage(id, partID)
+    },
+    unpin: timeline.view.unpin,
   })
 
   const sessionErrorFallback = (cause: unknown, reset: () => void) => {
@@ -381,7 +398,7 @@ function SessionScreenContent(props: {
                   view={props.view()}
                   sidebar={sidebar}
                   visible={mobileView() === entry.key}
-                  open={() => region.openFor(entry.extension)}
+                  open={() => region.openFor(entry.plugin)}
                 />
               </div>
             )}
@@ -399,7 +416,7 @@ function SessionScreenContent(props: {
                 view={props.view()}
                 sidebar={sidebar}
                 visible
-                open={() => region.openFor(entry().extension)}
+                open={() => region.openFor(entry().plugin)}
               />
             )}
           </Match>
@@ -420,6 +437,8 @@ function SessionScreenContent(props: {
           {(model) => (
             <ActiveSessionComposerRegion
               session={session}
+              view={props.view}
+              screen={props.screen}
               model={model}
               suggestionBoundary={timeline.visible}
               onReveal={timeline.actions.revealPart}
@@ -471,21 +490,21 @@ function SessionScreenContent(props: {
               <SessionHeaderDrag pane={chat} gap={headerGap()} />
             </Show>
 
-            <Show when={screen.panel.resizable()}>
-              <div onPointerDown={() => screen.size.start()}>
-                <ResizeHandle
-                  class="-end-1"
-                  direction="horizontal"
-                  size={screen.panel.resizedWidth()}
-                  min={SESSION_PANEL_WIDTH_MIN}
-                  max={screen.panel.max()}
-                  onResize={(width) => {
-                    screen.size.touch()
-                    session.layout.view().session.resize(width)
-                  }}
-                />
-              </div>
-            </Show>
+            {/* Hidden rather than unmounted: removing it makes the transcript frame the last child, and structural
+                selectors in the transcript then restyle every element in it as the side panel starts to close. */}
+            <div classList={{ hidden: !screen.panel.resizable() }} onPointerDown={() => screen.size.start()}>
+              <ResizeHandle
+                class="-end-1"
+                direction="horizontal"
+                size={screen.panel.resizedWidth()}
+                min={SESSION_PANEL_WIDTH_MIN}
+                max={screen.panel.max()}
+                onResize={(width) => {
+                  screen.size.touch()
+                  session.layout.view().session.resize(width)
+                }}
+              />
+            </div>
           </div>
 
           <Show when={sideMotion.present() || store.sideMounted}>
